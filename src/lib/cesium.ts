@@ -89,10 +89,9 @@ function makeTerrain(settings: AppSettings): Cesium.TerrainProvider | Promise<Ce
       scene.globe.depthTestAgainstTerrain = false;
       scene.screenSpaceCameraController.minimumZoomDistance = 800;
       scene.screenSpaceCameraController.maximumZoomDistance = 90000000;
-      scene.screenSpaceCameraController.translateEventTypes = [Cesium.CameraEventType.LEFT_DRAG];
+      scene.screenSpaceCameraController.tiltEventTypes = [Cesium.CameraEventType.LEFT_DRAG, Cesium.CameraEventType.PINCH];
       scene.screenSpaceCameraController.rotateEventTypes = [Cesium.CameraEventType.RIGHT_DRAG];
-      scene.screenSpaceCameraController.tiltEventTypes = [Cesium.CameraEventType.PINCH];
-      scene.screenSpaceCameraController.lookEventTypes = [Cesium.CameraEventType.LEFT_DRAG, Cesium.CameraEventType.PINCH];
+      scene.screenSpaceCameraController.lookEventTypes = [Cesium.CameraEventType.PINCH];
       scene.fog.enabled = true;
       scene.fog.density = 0.00018;
       scene.moon = undefined as never;

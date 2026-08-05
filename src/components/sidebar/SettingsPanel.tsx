@@ -84,8 +84,9 @@ export default function SettingsPanel() {
       <div className="setting-group">
         <h4>交互说明</h4>
         <ul className="help-list">
-          <li>左键拖拽平移 · 滚轮缩放 · 右键拖拽旋转</li>
-          <li>拖动左侧「俯角」滑块，查看地形立体起伏</li>
+          <li>左键拖拽调整俯角 · 滚轮缩放 · 右键拖拽旋转</li>
+          <li>方向键 ←↑→↓ 水平/垂直平移地图</li>
+          <li>拖动右侧「俯角」滑块，查看地形立体起伏</li>
           <li>悬停绿色/蓝色/红色图钉查看景点与交通枢纽详情</li>
           <li>行程页：添加途经点 → 自动计算每段 Top 3 真实路线</li>
           <li>路线颜色随一天中时间早晚渐变（晨光→正午→暮色）</li>
