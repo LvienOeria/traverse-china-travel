@@ -93,7 +93,19 @@ function KindSection({
                   </div>
                 </div>
                 <div className="poi-ops">
-                  <button className="mini-btn" title="定位到地图" onClick={() => flyToPoint(poi.lat, poi.lng)}>
+                  <button
+                    className="mini-btn"
+                    title="定位到地图"
+                    onClick={() => {
+                      useAppStore.getState().setLocateTarget({
+                        lat: poi.lat,
+                        lng: poi.lng,
+                        name: poi.name,
+                        color: '#E8A33D',
+                      });
+                      flyToPoint(poi.lat, poi.lng);
+                    }}
+                  >
                     <LocateIcon />
                   </button>
                   <button className="mini-btn" title={visible ? '隐藏该图钉' : '显示该图钉'} onClick={() => toggleItem(kind, poi.id)}>

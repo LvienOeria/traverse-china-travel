@@ -6,6 +6,7 @@ import TripLayer from './components/map/TripLayer';
 import DrawTool from './components/map/DrawTool';
 import MapControls from './components/map/MapControls';
 import MapTooltip from './components/map/MapTooltip';
+import LocateMarker from './components/map/LocateMarker';
 import ElevationProfile from './components/map/ElevationProfile';
 import Sidebar from './components/sidebar/Sidebar';
 import { useAppStore } from './store/appStore';
@@ -127,6 +128,7 @@ export default function App() {
             added={tooltip ? useAppStore.getState().isListed(tooltip.poi.kind, tooltip.poi.id) : false}
             onAdd={(poi) => useAppStore.getState().addToList(poi)}
           />
+          <LocateMarker />
           <ElevationProfile />
         </MapViewer>
         {pickHint && (

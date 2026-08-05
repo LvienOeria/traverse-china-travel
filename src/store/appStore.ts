@@ -2,12 +2,22 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { AppSettings, ListedPoi, Poi, PoiVisibility } from '../lib/types';
 
+export interface LocateTarget {
+  lat: number;
+  lng: number;
+  name: string;
+  color: string;
+}
+
 interface AppState {
   settings: AppSettings;
   setSettings: (patch: Partial<AppSettings>) => void;
 
   visibility: PoiVisibility;
   setVisibility: (patch: Partial<PoiVisibility>) => void;
+
+  locateTarget: LocateTarget | null;
+  setLocateTarget: (t: LocateTarget | null) => void;
 
   scenicList: ListedPoi[];
   airportList: ListedPoi[];
@@ -45,6 +55,9 @@ export const useAppStore = create<AppState>()(
 
       visibility: { scenic: true, airport: true, station: true },
       setVisibility: (patch) => set((s) => ({ visibility: { ...s.visibility, ...patch } })),
+
+      locateTarget: null,
+      setLocateTarget: (t) => set({ locateTarget: t }),
 
       scenicList: [],
       airportList: [],
