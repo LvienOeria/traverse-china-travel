@@ -21,6 +21,7 @@ export default function App() {
   const [pickHint, setPickHint] = useState('');
   const pickMode = usePickStore((s) => s.mode);
   const cancelPick = usePickStore((s) => s.cancelPick);
+  const locateTarget = useAppStore((s) => s.locateTarget);
   const addWaypoint = useTripStore((s) => s.addWaypoint);
   const setDrawnRoute = useTripStore((s) => s.setDrawnRoute);
   const trip = useTripStore((s) => s.trip);
@@ -136,6 +137,12 @@ export default function App() {
             <span className="pick-dot" />
             {pickHint}
             <button className="pick-cancel" onClick={cancelPick}>取消</button>
+          </div>
+        )}
+        {locateTarget && !pickHint && (
+          <div className="pick-banner locate-banner">
+            <span className="pick-dot" />
+            定位中 — 点击地图任意位置，或再次点击列表中的 ◎ 取消定位
           </div>
         )}
         {tooltip && <div className="tooltip-note">点击图钉可加入收藏列表</div>}

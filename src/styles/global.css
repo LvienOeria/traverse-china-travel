@@ -1670,6 +1670,12 @@ body {
   padding: 2px 4px;
 }
 
+.locate-banner {
+  border-color: rgba(232, 163, 61, 0.45);
+  color: var(--paper-dim);
+  font-size: 11.5px;
+}
+
 .tooltip-note {
   position: absolute;
   bottom: 14px;

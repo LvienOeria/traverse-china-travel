@@ -17,6 +17,7 @@ function KindSection({
 }) {
   const list = useAppStore((s) => s[listKey(kind)]);
   const visibility = useAppStore((s) => s.visibility);
+  const locateTarget = useAppStore((s) => s.locateTarget);
   const addToList = useAppStore((s) => s.addToList);
   const removeFromList = useAppStore((s) => s.removeFromList);
   const toggleItem = useAppStore((s) => s.toggleItem);
@@ -94,16 +95,22 @@ function KindSection({
                 </div>
                 <div className="poi-ops">
                   <button
-                    className="mini-btn"
-                    title="定位到地图"
+                    className={`mini-btn ${locateTarget && locateTarget.name === poi.name && Math.abs(locateTarget.lat - poi.lat) < 1e-6 && Math.abs(locateTarget.lng - poi.lng) < 1e-6 ? 'active' : ''}`}
+                    title={locateTarget && locateTarget.name === poi.name ? '取消定位' : '定位到地图'}
                     onClick={() => {
-                      useAppStore.getState().setLocateTarget({
-                        lat: poi.lat,
-                        lng: poi.lng,
-                        name: poi.name,
-                        color: '#E8A33D',
-                      });
-                      flyToPoint(poi.lat, poi.lng);
+                      const app = useAppStore.getState();
+                      const isActive = app.locateTarget && app.locateTarget.name === poi.name && Math.abs(app.locateTarget.lat - poi.lat) < 1e-6 && Math.abs(app.locateTarget.lng - poi.lng) < 1e-6;
+                      if (isActive) {
+                        app.setLocateTarget(null);
+                      } else {
+                        app.setLocateTarget({
+                          lat: poi.lat,
+                          lng: poi.lng,
+                          name: poi.name,
+                          color: '#E8A33D',
+                        });
+                        flyToPoint(poi.lat, poi.lng);
+                      }
                     }}
                   >
                     <LocateIcon />

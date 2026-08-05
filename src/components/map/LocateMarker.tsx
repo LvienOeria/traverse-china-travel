@@ -1,36 +1,11 @@
 import { useEffect, useRef } from 'react';
 import * as Cesium from 'cesium';
-import { getViewer } from '../../lib/cesium';
 import { useAppStore } from '../../store/appStore';
 import { usePickStore } from '../../store/pickStore';
 import { useViewer } from './MapViewer';
 
 const AMBER = '#E8A33D';
 const WHITE = '#FFFFFF';
-
-function makeRingTexture(): HTMLCanvasElement {
-  const c = document.createElement('canvas');
-  c.width = c.height = 160;
-  const ctx = c.getContext('2d')!;
-  const g = ctx.createRadialGradient(80, 80, 24, 80, 80, 79);
-  g.addColorStop(0, 'rgba(232,163,61,0)');
-  g.addColorStop(0.5, 'rgba(232,163,61,0.18)');
-  g.addColorStop(0.72, 'rgba(232,163,61,0.5)');
-  g.addColorStop(1, 'rgba(232,163,61,0)');
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, 160, 160);
-  ctx.strokeStyle = 'rgba(255,214,140,0.95)';
-  ctx.lineWidth = 4;
-  ctx.beginPath();
-  ctx.arc(80, 80, 74, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.strokeStyle = 'rgba(255,255,255,0.55)';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.arc(80, 80, 62, 0, Math.PI * 2);
-  ctx.stroke();
-  return c;
-}
 
 function makeTargetPinSvg(): string {
   return `data:image/svg+xml;utf8,${encodeURIComponent(
@@ -44,8 +19,7 @@ function makeTargetPinSvg(): string {
 }
 
 /**
- * Prominent locate-target marker: ground glow ellipse, pulsing ring,
- * vertical beam and a name label — visible from far away.
+ * Locate-target marker: a prominent pin, vertical beam and a name label.
  * Cleared by clicking anywhere else on the map (except during pick modes).
  */
 export default function LocateMarker() {
@@ -53,64 +27,16 @@ export default function LocateMarker() {
   const target = useAppStore((s) => s.locateTarget);
   const setLocateTarget = useAppStore((s) => s.setLocateTarget);
   const entitiesRef = useRef<Cesium.Entity[]>([]);
-  const epochRef = useRef(Cesium.JulianDate.now());
 
   useEffect(() => {
     if (!viewer) return;
     for (const e of entitiesRef.current) viewer.entities.remove(e);
     entitiesRef.current = [];
     if (!target) return;
-    epochRef.current = Cesium.JulianDate.now();
     const { lat, lng, name } = target;
     const list: Cesium.Entity[] = [];
     const ground = Cesium.Cartesian3.fromDegrees(lng, lat, 0);
     const top = Cesium.Cartesian3.fromDegrees(lng, lat, 4200);
-
-    // ground glow ellipse (radius scales with camera height)
-    list.push(
-      viewer.entities.add({
-        id: 'locate-ellipse',
-        position: ground,
-        ellipse: {
-          semiMajorAxis: new Cesium.CallbackProperty(() => {
-            const h = getViewer()?.camera.positionCartographic.height ?? 50000;
-            return Math.min(70000, Math.max(700, h * 0.16));
-          }, false),
-          semiMinorAxis: new Cesium.CallbackProperty(() => {
-            const h = getViewer()?.camera.positionCartographic.height ?? 50000;
-            return Math.min(70000, Math.max(700, h * 0.16));
-          }, false),
-          heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
-          material: Cesium.Color.fromCssColorString(AMBER).withAlpha(0.14),
-          outline: true,
-          outlineColor: Cesium.Color.fromCssColorString(AMBER).withAlpha(0.5),
-          outlineWidth: 2,
-        },
-      }),
-    );
-
-    // pulsing ring billboard
-    list.push(
-      viewer.entities.add({
-        id: 'locate-ring',
-        position: Cesium.Cartesian3.fromDegrees(lng, lat, 30),
-        billboard: {
-          image: makeRingTexture(),
-          width: 180,
-          height: 180,
-          verticalOrigin: Cesium.VerticalOrigin.CENTER,
-          scale: new Cesium.CallbackProperty(() => {
-            const t = ((Cesium.JulianDate.secondsDifference(Cesium.JulianDate.now(), epochRef.current) % 1.4) + 1.4) % 1.4 / 1.4;
-            return 0.75 + 0.55 * Math.sin(t * Math.PI);
-          }, false),
-          color: new Cesium.CallbackProperty(() => {
-            const t = ((Cesium.JulianDate.secondsDifference(Cesium.JulianDate.now(), epochRef.current) % 1.4) + 1.4) % 1.4 / 1.4;
-            return Cesium.Color.fromCssColorString(AMBER).withAlpha(0.85 - 0.6 * Math.sin(t * Math.PI));
-          }, false),
-          disableDepthTestDistance: Number.POSITIVE_INFINITY,
-        },
-      }),
-    );
 
     // vertical beam
     list.push(
@@ -125,7 +51,7 @@ export default function LocateMarker() {
       }),
     );
 
-    // prominent pin
+    // prominent pin + name label
     list.push(
       viewer.entities.add({
         id: 'locate-pin',
