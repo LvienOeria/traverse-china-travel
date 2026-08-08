@@ -8,7 +8,7 @@ type Tab = 'poi' | 'plan' | 'settings';
 
 export default function Sidebar() {
   const [tab, setTab] = useState<Tab>('poi');
-  const [stats, setStats] = useState<{ spots: number; airports: number; stations: number } | null>(null);
+  const [stats, setStats] = useState<{ spots: number } | null>(null);
 
   useEffect(() => {
     loadStats().then(setStats);
@@ -49,9 +49,9 @@ export default function Sidebar() {
         {tab === 'settings' && <SettingsPanel />}
       </div>
       <footer className="sidebar-foot mono">
-        <span>OSM 数据 · OSRM 路线</span>
+        <span>OSM 数据</span>
         <span className="dot" />
-        <span>{stats ? `${stats.spots} 景点 · ${stats.airports} 机场 · ${stats.stations} 车站` : '…'}</span>
+        <span>{stats ? `${stats.spots} 个景点` : '…'}</span>
       </footer>
     </aside>
   );

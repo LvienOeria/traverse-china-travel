@@ -102,22 +102,35 @@ body {
   min-width: 0;
 }
 
-.map-root,
-.map-root .cesium-viewer,
-.map-root .cesium-widget,
-.map-root .cesium-widget canvas {
+.map-root {
   width: 100%;
   height: 100%;
+  position: relative;
+  background: #0d1117;
 }
 
-.cesium-viewer-bottom {
-  display: none !important;
+/* leaflet base */
+.leaflet-container {
+  background: #0d1117;
+  font-family: var(--font-body);
+  outline: none;
 }
-.cesium-widget-credits {
-  display: none !important;
+
+.leaflet-container .leaflet-tile {
+  filter: saturate(0.92) contrast(1.02);
+  transition: opacity 0.25s ease;
 }
-.cesium-viewer-toolbar {
-  display: none !important;
+
+.leaflet-control-attribution {
+  background: rgba(11, 14, 19, 0.72) !important;
+  color: var(--faint) !important;
+  font-size: 9.5px !important;
+  backdrop-filter: blur(4px);
+  border-radius: 6px 0 0 0;
+}
+
+.leaflet-control-attribution a {
+  color: var(--muted) !important;
 }
 
 /* ============================================================
@@ -1603,28 +1616,113 @@ body {
   background: var(--amber-soft);
 }
 
-.pitch-widget {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.zoom-indicator {
   background: rgba(16, 20, 28, 0.82);
   border: 1px solid var(--line-2);
-  border-radius: 20px;
-  padding: 5px 10px 5px 12px;
+  color: var(--muted);
+  border-radius: 14px;
+  padding: 4px 11px;
+  font-size: 10px;
   backdrop-filter: blur(6px);
 }
 
-.pitch-label {
-  font-size: 10px;
-  color: var(--amber);
-  min-width: 28px;
-  text-align: right;
+/* ---------- custom pins ---------- */
+
+.trav-pin {
+  background: transparent;
+  border: none;
+  filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.45));
+  transition: transform 0.16s ease, filter 0.16s ease;
+  animation: pinDrop 0.28s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+  will-change: transform;
 }
 
-.pitch-widget input[type='range'] {
-  width: 96px;
-  accent-color: var(--amber);
-  height: 4px;
+.trav-pin:hover {
+  transform: translateY(-3px) scale(1.14);
+  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.5));
+  z-index: 500;
+}
+
+@keyframes pinDrop {
+  from {
+    opacity: 0;
+    transform: translateY(-14px) scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.trav-pin svg {
+  display: block;
+}
+
+.trav-locate-pin {
+  animation: locatePop 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.3);
+}
+
+@keyframes locatePop {
+  from {
+    opacity: 0;
+    transform: scale(0.3) translateY(-18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.trav-locate-label {
+  background: rgba(11, 14, 19, 0.88);
+  border: 1px solid rgba(232, 163, 61, 0.55);
+  color: var(--paper);
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 5px 12px;
+  border-radius: 16px;
+  box-shadow: var(--shadow-2);
+  backdrop-filter: blur(6px);
+  white-space: nowrap;
+  animation: tooltipIn 0.25s ease;
+}
+
+.trav-locate-label::before {
+  border-top-color: rgba(232, 163, 61, 0.55) !important;
+}
+
+/* ---------- clusters ---------- */
+
+.trav-cluster-inner {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle at 35% 30%, #262f3d, #12161d);
+  border: 1.5px solid var(--amber);
+  color: var(--amber);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: 0 0 0 4px rgba(232, 163, 61, 0.12), 0 3px 10px rgba(0, 0, 0, 0.4);
+  animation: clusterPop 0.3s cubic-bezier(0.2, 0.9, 0.3, 1.3);
+}
+
+@keyframes clusterPop {
+  from {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.marker-cluster {
+  background: transparent;
 }
 
 .pick-banner {
@@ -1674,95 +1772,6 @@ body {
   border-color: rgba(232, 163, 61, 0.45);
   color: var(--paper-dim);
   font-size: 11.5px;
-}
-
-.tooltip-note {
-  position: absolute;
-  bottom: 14px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 40;
-  background: rgba(16, 20, 28, 0.8);
-  border: 1px solid var(--line-2);
-  color: var(--muted);
-  font-size: 11px;
-  border-radius: 20px;
-  padding: 6px 14px;
-  backdrop-filter: blur(6px);
-  pointer-events: none;
-}
-
-/* ---------- elevation profile ---------- */
-
-.elev-profile {
-  position: absolute;
-  left: 50%;
-  bottom: 16px;
-  transform: translateX(-50%);
-  z-index: 40;
-  width: min(480px, 70%);
-  background: rgba(16, 20, 28, 0.88);
-  border: 1px solid var(--line-2);
-  border-radius: 12px;
-  padding: 8px 12px 6px;
-  backdrop-filter: blur(8px);
-  box-shadow: var(--shadow-1);
-}
-
-.prof-head {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding-bottom: 6px;
-}
-
-.prof-title {
-  font-size: 11px;
-  color: var(--paper-dim);
-  letter-spacing: 0.1em;
-  font-weight: 600;
-}
-
-.prof-stats {
-  flex: 1;
-  font-size: 10px;
-  color: var(--muted);
-  text-align: right;
-}
-
-.prof-close {
-  appearance: none;
-  background: none;
-  border: none;
-  color: var(--faint);
-  font-size: 14px;
-  cursor: pointer;
-  line-height: 1;
-}
-
-.prof-close:hover {
-  color: var(--coral);
-}
-
-.prof-toggle {
-  position: absolute;
-  left: 50%;
-  bottom: 16px;
-  transform: translateX(-50%);
-  z-index: 40;
-  background: rgba(16, 20, 28, 0.85);
-  border: 1px solid var(--line-2);
-  color: var(--paper-dim);
-  border-radius: 20px;
-  padding: 7px 14px;
-  font-size: 11.5px;
-  cursor: pointer;
-  backdrop-filter: blur(6px);
-}
-
-.prof-toggle:hover {
-  border-color: var(--amber);
-  color: var(--amber);
 }
 
 /* ============================================================

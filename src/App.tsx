@@ -1,97 +1,48 @@
-import { useCallback, useEffect, useState } from 'react';
-import * as Cesium from 'cesium';
+import { useEffect, useState } from 'react';
 import MapViewer from './components/map/MapViewer';
 import PoiLayer, { type TooltipTarget } from './components/map/PoiLayer';
 import TripLayer from './components/map/TripLayer';
-import DrawTool from './components/map/DrawTool';
 import MapControls from './components/map/MapControls';
 import MapTooltip from './components/map/MapTooltip';
 import LocateMarker from './components/map/LocateMarker';
-import ElevationProfile from './components/map/ElevationProfile';
 import Sidebar from './components/sidebar/Sidebar';
 import { useAppStore } from './store/appStore';
 import { usePickStore } from './store/pickStore';
-import { reverseGeocode, routeOptionFromGeometry } from './lib/network';
-import { haversineKm } from './lib/types';
-import { getViewer } from './lib/cesium';
+import { reverseGeocode } from './lib/network';
+import { getMap } from './lib/leaflet';
 import { useTripStore } from './store/tripStore';
 
 export default function App() {
   const [tooltip, setTooltip] = useState<TooltipTarget | null>(null);
+  const [wpTooltip, setWpTooltip] = useState<{ name: string; time: string; dayColor: string; dayLabel: string; screenX: number; screenY: number } | null>(null);
   const [pickHint, setPickHint] = useState('');
   const pickMode = usePickStore((s) => s.mode);
   const cancelPick = usePickStore((s) => s.cancelPick);
   const locateTarget = useAppStore((s) => s.locateTarget);
   const addWaypoint = useTripStore((s) => s.addWaypoint);
-  const setDrawnRoute = useTripStore((s) => s.setDrawnRoute);
-  const trip = useTripStore((s) => s.trip);
 
   useEffect(() => {
-    setPickHint(
-      pickMode?.kind === 'waypoint'
-        ? '在地图上单击选择途经点位置 · Esc 取消'
-        : pickMode?.kind === 'segment-draw'
-          ? '单击添加路径点，双击 / Enter 结束 · Esc 取消'
-          : '',
-    );
+    setPickHint(pickMode?.kind === 'waypoint' ? '在地图上单击选择途经点位置 · Esc 取消' : '');
   }, [pickMode]);
 
   // map click → waypoint pick
   useEffect(() => {
     if (pickMode?.kind !== 'waypoint') return;
-    const viewer = getViewer();
-    if (!viewer) return;
-    const scene = viewer.scene;
-    const handler = new Cesium.ScreenSpaceEventHandler(scene.canvas);
-    handler.setInputAction(async (e: { position: Cesium.Cartesian2 }) => {
-      const ray = viewer.camera.getPickRay(e.position);
-      if (!ray) return;
-      const cart = scene.globe.pick(ray, scene);
-      if (!cart) return;
-      const carto = Cesium.Cartographic.fromCartesian(cart);
-      const lat = Cesium.Math.toDegrees(carto.latitude);
-      const lng = Cesium.Math.toDegrees(carto.longitude);
+    const map = getMap();
+    if (!map) return;
+    const onClick = async (e: { latlng: { lat: number; lng: number } }) => {
+      const { lat, lng } = e.latlng;
       const name = await reverseGeocode(lat, lng);
       const d = new Date();
       const time = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-      const dayId = pickMode.dayId;
-      addWaypoint(dayId, { type: 'drawn', name, lat, lng, time });
+      addWaypoint(pickMode.dayId, { type: 'drawn', name, lat, lng, time });
       cancelPick();
-    }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
-    return () => handler.destroy();
+    };
+    map.on('click', onClick);
+    return () => {
+      map.off('click', onClick);
+    };
   }, [pickMode, addWaypoint, cancelPick]);
-
-  const onDrawDone = useCallback(
-    (geometry: { lat: number; lng: number }[]) => {
-      const mode = usePickStore.getState().mode;
-      if (mode?.kind !== 'segment-draw') return;
-      const { trip: t } = useTripStore.getState();
-      const day = t?.days.find((d) => d.id === mode.dayId);
-      const seg = day?.segments[mode.segIdx];
-      if (!day || !seg) {
-        cancelPick();
-        return;
-      }
-      const a = day.waypoints.find((w) => w.id === seg.fromId);
-      const b = day.waypoints.find((w) => w.id === seg.toId);
-      if (!a || !b) {
-        cancelPick();
-        return;
-      }
-      let dist = 0;
-      for (let i = 1; i < geometry.length; i++) {
-        dist += haversineKm(geometry[i - 1], geometry[i]);
-      }
-      const route = {
-        ...routeOptionFromGeometry(a, b, geometry),
-        distanceKm: dist,
-        durationMin: (dist / 70) * 60,
-      };
-      setDrawnRoute(mode.dayId, mode.segIdx, route);
-      cancelPick();
-    },
-    [setDrawnRoute, cancelPick],
-  );
 
   return (
     <div className="app">
@@ -99,38 +50,39 @@ export default function App() {
       <main className="map-stage">
         <MapViewer>
           <PoiLayer
-            onHover={(t) => setTooltip(t)}
+            onHover={(t) => {
+              setTooltip(t);
+              if (t) setWpTooltip(null);
+            }}
             onPick={(poi) => {
               const { isListed, addToList } = useAppStore.getState();
-              if (!isListed(poi.kind, poi.id)) addToList(poi);
+              if (!isListed(poi.id)) addToList(poi);
             }}
           />
-          <TripLayer />
-          <DrawTool
-            active={pickMode?.kind === 'segment-draw'}
-            onDone={onDrawDone}
-            onCancel={cancelPick}
-          />
-          <MapControls
-            drawActive={pickMode?.kind === 'segment-draw'}
-            onToggleDraw={() => {
-              const { requestPick: rp } = usePickStore.getState();
-              const m = usePickStore.getState().mode;
-              if (!m || m.kind !== 'segment-draw') {
-                const day = trip?.days.find((d) => d.segments.some((s) => s.chosen !== null || s.routes.length > 0));
-                if (day) rp({ kind: 'segment-draw', dayId: day.id, segIdx: 0 });
-                else rp({ kind: 'segment-draw', dayId: trip?.days[0]?.id ?? '', segIdx: 0 });
-              }
+          <TripLayer
+            onHover={(wp, target) => {
+              setWpTooltip(wp && target ? { ...wp, ...target } : null);
+              if (wp) setTooltip(null);
             }}
-            onCancelDraw={cancelPick}
           />
+          <MapControls />
           <MapTooltip
             target={tooltip}
-            added={tooltip ? useAppStore.getState().isListed(tooltip.poi.kind, tooltip.poi.id) : false}
+            added={tooltip ? useAppStore.getState().isListed(tooltip.poi.id) : false}
             onAdd={(poi) => useAppStore.getState().addToList(poi)}
           />
+          {wpTooltip && (
+            <div
+              className="map-tooltip wp-tooltip"
+              style={{ left: wpTooltip.screenX + 18, top: wpTooltip.screenY - 90 }}
+            >
+              <div className="tooltip-body">
+                <div className="tooltip-name" style={{ color: wpTooltip.dayColor }}>{wpTooltip.name}</div>
+                <div className="tooltip-coord mono">{wpTooltip.dayLabel} · 到达 {wpTooltip.time}</div>
+              </div>
+            </div>
+          )}
           <LocateMarker />
-          <ElevationProfile />
         </MapViewer>
         {pickHint && (
           <div className="pick-banner">
@@ -145,7 +97,6 @@ export default function App() {
             定位中 — 点击地图任意位置，或再次点击列表中的 ◎ 取消定位
           </div>
         )}
-        {tooltip && <div className="tooltip-note">点击图钉可加入收藏列表</div>}
       </main>
     </div>
   );

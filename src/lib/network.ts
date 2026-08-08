@@ -1,64 +1,4 @@
-import type { GeoPoint, RouteOption } from './types';
-import { haversineKm } from './types';
-
-const OSRM_ENDPOINT = 'https://router.project-osrm.org/route/v1/driving';
-let lastReq = 0;
-const MIN_GAP = 650;
-
-async function throttle() {
-  const wait = Math.max(0, lastReq + MIN_GAP - Date.now());
-  if (wait > 0) await new Promise((r) => setTimeout(r, wait));
-  lastReq = Date.now();
-}
-
-/**
- * OSRM top-3 alternative routes between two points.
- * Returns [] on failure (caller falls back to geodesic).
- */
-export async function fetchTopRoutes(a: GeoPoint, b: GeoPoint): Promise<RouteOption[]> {
-  const coordStr = `${a.lng},${a.lat};${b.lng},${b.lat}`;
-  const url =
-    `${OSRM_ENDPOINT}/${coordStr}?alternatives=3&overview=full&geometries=geojson&steps=false` +
-    `&annotations=duration`;
-  await throttle();
-  try {
-    const res = await fetch(url, { signal: AbortSignal.timeout(25000) });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const json = await res.json();
-    if (json.code !== 'Ok' || !json.routes?.length) throw new Error(json.message || json.code);
-    return json.routes.map((r: { distance: number; duration: number; geometry: { coordinates: number[][] } }) => ({
-      distanceKm: r.distance / 1000,
-      durationMin: r.duration / 60,
-      geometry: r.geometry.coordinates.map(([lng, lat]) => ({ lat, lng })),
-      source: 'osrm' as const,
-    }));
-  } catch {
-    return [];
-  }
-}
-
-/** Great-circle fallback: dense interpolated geodesic between two points. */
-export function fallbackRoute(a: GeoPoint, b: GeoPoint, segments = 64): GeoPoint[] {
-  const pts: GeoPoint[] = [];
-  for (let i = 0; i <= segments; i++) {
-    const k = i / segments;
-    pts.push({
-      lat: a.lat + (b.lat - a.lat) * k,
-      lng: a.lng + (b.lng - a.lng) * k,
-    });
-  }
-  return pts;
-}
-
-export function routeOptionFromGeometry(a: GeoPoint, b: GeoPoint, geometry: GeoPoint[]): RouteOption {
-  const d = haversineKm(a, b);
-  return {
-    distanceKm: d,
-    durationMin: (d / 60) * 60,
-    geometry,
-    source: 'drawn',
-  };
-}
+import type { GeoPoint } from './types';
 
 export interface GeocodeResult {
   name: string;
@@ -102,4 +42,9 @@ export async function reverseGeocode(lat: number, lng: number): Promise<string> 
   } catch {
     return `位置 ${lat.toFixed(3)}, ${lng.toFixed(3)}`;
   }
+}
+
+export interface MapRef {
+  project: (p: GeoPoint) => { x: number; y: number } | null;
+  toLatLng: (p: { x: number; y: number }) => GeoPoint | null;
 }

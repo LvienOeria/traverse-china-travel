@@ -1,79 +1,73 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createContext, useContext } from 'react';
-import * as Cesium from 'cesium';
-import { applySettings, destroyViewer, getViewer, initViewer } from '../../lib/cesium';
+import type * as L from 'leaflet';
+import { applyMapSettings, destroyMap, initMap } from '../../lib/leaflet';
 import { useAppStore } from '../../store/appStore';
 
-interface ViewerCtx {
-  viewer: Cesium.Viewer | null;
+interface MapCtx {
+  map: L.Map | null;
   ready: boolean;
 }
 
-const Ctx = createContext<ViewerCtx>({ viewer: null, ready: false });
-export const useViewer = () => useContext(Ctx);
+const Ctx = createContext<MapCtx>({ map: null, ready: false });
+export const useMap = () => useContext(Ctx);
 
 export default function MapViewer({ children }: { children?: ReactNode }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [viewer, setViewer] = useState<Cesium.Viewer | null>(null);
+  const [map, setMap] = useState<L.Map | null>(null);
   const settings = useAppStore((s) => s.settings);
   const prevSettingsRef = useRef(settings);
 
   useEffect(() => {
-    let cancelled = false;
     const el = containerRef.current;
     if (!el) return;
-    initViewer(el, settings).then((v) => {
-      if (cancelled) return;
-      setViewer(v);
-    });
-    return () => {
-      cancelled = true;
-      destroyViewer();
-    };
+    const m = initMap(el, settings);
+    setMap(m);
+    return () => destroyMap();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    if (viewer) {
+    if (map) {
       const prev = prevSettingsRef.current;
-      applySettings(viewer, settings, prev);
+      applyMapSettings(settings, prev);
       prevSettingsRef.current = settings;
     }
-  }, [viewer, settings]);
+  }, [map, settings]);
 
   useEffect(() => {
-    const onResize = () => getViewer()?.resize();
+    if (!map) return;
+    const onResize = () => map.invalidateSize();
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
-  }, []);
+  }, [map]);
 
   // arrow-key panning (skip when typing in inputs)
   useEffect(() => {
-    if (!viewer) return;
+    if (!map) return;
     const onKey = (ev: KeyboardEvent) => {
       const t = ev.target as HTMLElement | null;
       if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
       const dir =
-        ev.key === 'ArrowLeft' ? 'left' :
-        ev.key === 'ArrowRight' ? 'right' :
-        ev.key === 'ArrowUp' ? 'up' :
-        ev.key === 'ArrowDown' ? 'down' : null;
+        ev.key === 'ArrowLeft' ? [0, -1] :
+        ev.key === 'ArrowRight' ? [0, 1] :
+        ev.key === 'ArrowUp' ? [1, 0] :
+        ev.key === 'ArrowDown' ? [-1, 0] : null;
       if (!dir) return;
       ev.preventDefault();
-      const cam = viewer.camera;
-      const dist = cam.positionCartographic.height * 0.06;
-      if (dir === 'left') cam.moveLeft(dist);
-      else if (dir === 'right') cam.moveRight(dist);
-      else if (dir === 'up') cam.moveUp(dist);
-      else cam.moveDown(dist);
+      const z = map.getZoom();
+      const px = map.getSize().x * 0.22;
+      const target = map.getCenter();
+      const d = map.unproject(map.project(target).add([dir[1] * px, dir[0] * px]), z);
+      map.panTo(d, { animate: true, duration: 0.18 });
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [viewer]);
+  }, [map]);
 
   return (
     <div className="map-root" ref={containerRef}>
-      <Ctx.Provider value={{ viewer, ready: !!viewer }}>{viewer ? children : null}</Ctx.Provider>
+      <Ctx.Provider value={{ map, ready: !!map }}>{map ? children : null}</Ctx.Provider>
     </div>
   );
 }

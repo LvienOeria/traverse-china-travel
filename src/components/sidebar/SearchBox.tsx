@@ -1,13 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import type { Poi, PoiKind } from '../../lib/types';
-import { loadPois } from '../../lib/data';
+import type { Poi } from '../../lib/types';
 
 export interface SearchHit {
   id: string;
   name: string;
   sub: string;
   img?: string;
-  kind: PoiKind | 'custom';
+  kind: 'scenic' | 'custom';
   lat: number;
   lng: number;
   poi?: Poi;
@@ -15,7 +14,7 @@ export interface SearchHit {
 
 interface Props {
   placeholder: string;
-  kinds: PoiKind[];
+  kinds: ('scenic')[];
   onPick: (hit: SearchHit) => void;
   extra?: (q: string) => Promise<SearchHit[]>;
   autoFocus?: boolean;
@@ -45,15 +44,16 @@ export default function SearchBox({ placeholder, kinds, onPick, extra, autoFocus
       const lower = query.toLowerCase();
       for (const kind of kinds) {
         const file = kind === 'scenic' ? 'spots' : kind === 'airport' ? 'airports' : 'stations';
-        const arr = await loadPois(file);
+        const { loadPois } = await import('../../lib/data');
+        const arr = await loadPois(file as 'spots');
         for (const p of arr) {
           if (p.name.includes(query) || p.name.toLowerCase().includes(lower) || (p.en || '').toLowerCase().includes(lower)) {
             hits.push({
               id: `poi-${p.id}`,
               name: p.name,
-              sub: p.en || (p.kind === 'airport' ? (p.code || '') : p.kind === 'station' ? (p.hsr ? '高铁站' : '火车站') : '景点'),
+              sub: p.en || '景点',
               img: p.img,
-              kind: p.kind,
+              kind: 'scenic',
               lat: p.lat,
               lng: p.lng,
               poi: p,
@@ -67,7 +67,6 @@ export default function SearchBox({ placeholder, kinds, onPick, extra, autoFocus
       setResults(hits);
       setOpen(true);
       setLoading(false);
-      void extra;
     }, 220);
   }, [q, kinds]);
 
@@ -93,9 +92,6 @@ export default function SearchBox({ placeholder, kinds, onPick, extra, autoFocus
     setResults([]);
     setOpen(false);
   };
-
-  const kindLabel = (k: PoiKind | 'custom') =>
-    k === 'scenic' ? '景点' : k === 'airport' ? '机场' : k === 'station' ? '车站' : '自定义';
 
   return (
     <div className="search-box" ref={boxRef}>
@@ -123,13 +119,13 @@ export default function SearchBox({ placeholder, kinds, onPick, extra, autoFocus
               {r.img ? (
                 <img src={r.img} alt="" loading="lazy" onError={(e) => ((e.target as HTMLImageElement).style.display = 'none')} />
               ) : (
-                <span className={`search-item-fallback k-${r.kind}`}>{r.kind === 'airport' ? '✈' : r.kind === 'station' ? '🚄' : '⛰'}</span>
+                <span className="search-item-fallback k-scenic">⛰</span>
               )}
               <span className="search-item-text">
                 <span className="search-item-name">{r.name}</span>
                 <span className="search-item-sub">{r.sub}</span>
               </span>
-              <span className={`search-item-kind k-${r.kind}`}>{kindLabel(r.kind)}</span>
+              <span className="search-item-kind k-scenic">{r.kind === 'custom' ? '自定义' : '景点'}</span>
             </button>
           ))}
         </div>

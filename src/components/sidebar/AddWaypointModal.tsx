@@ -14,22 +14,16 @@ export default function AddWaypointModal({ dayId, onClose }: Props) {
   const addWaypoint = useTripStore((s) => s.addWaypoint);
   const requestPick = usePickStore((s) => s.requestPick);
   const scenicList = useAppStore((s) => s.scenicList);
-  const airportList = useAppStore((s) => s.airportList);
-  const stationList = useAppStore((s) => s.stationList);
-
-  const quickPois = [...scenicList, ...airportList, ...stationList]
-    .filter((l) => l.visible)
-    .map((l) => l.poi)
-    .slice(0, 40);
+  const quickPois = scenicList.filter((l) => l.visible).map((l) => l.poi).slice(0, 40);
 
   const timeNow = () => {
     const d = new Date();
     return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
   };
 
-  const addHit = (hit: SearchHit, kind: 'poi' | 'custom' | 'drawn') => {
+  const addHit = (hit: SearchHit) => {
     addWaypoint(dayId, {
-      type: kind,
+      type: hit.kind === 'custom' ? 'custom' : 'poi',
       name: hit.name,
       lat: hit.lat,
       lng: hit.lng,
@@ -37,11 +31,6 @@ export default function AddWaypointModal({ dayId, onClose }: Props) {
       poiId: hit.poi?.id,
     });
     onClose();
-  };
-
-  const onPick = (hit: SearchHit) => {
-    if (hit.kind === 'custom') addHit(hit, 'custom');
-    else addHit(hit, 'poi');
   };
 
   const pickOnMap = () => {
@@ -58,9 +47,9 @@ export default function AddWaypointModal({ dayId, onClose }: Props) {
         </div>
         <div className="modal-body">
           <SearchBox
-            placeholder="搜索景点 / 车站 / 机场 / 任意地名…（回车联网搜索）"
-            kinds={['scenic', 'airport', 'station']}
-            onPick={onPick}
+            placeholder="搜索景点 / 任意地名…（回车联网搜索）"
+            kinds={['scenic']}
+            onPick={addHit}
             autoFocus
             extra={async (q) => {
               const results = await geocodeQuery(q);
@@ -86,10 +75,16 @@ export default function AddWaypointModal({ dayId, onClose }: Props) {
                     key={poi.id}
                     className="quick-chip"
                     onClick={() =>
-                      addHit(
-                        { id: poi.id, name: poi.name, sub: '', img: poi.img, kind: poi.kind, lat: poi.lat, lng: poi.lng, poi },
-                        'poi',
-                      )
+                      addHit({
+                        id: poi.id,
+                        name: poi.name,
+                        sub: '',
+                        img: poi.img,
+                        kind: 'scenic',
+                        lat: poi.lat,
+                        lng: poi.lng,
+                        poi,
+                      })
                     }
                   >
                     {poi.img && (

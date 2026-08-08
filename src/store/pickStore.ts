@@ -1,16 +1,12 @@
 import { create } from 'zustand';
 import type { GeoPoint } from '../lib/types';
 
-export type PickMode =
-  | null
-  | { kind: 'waypoint'; dayId: string }
-  | { kind: 'segment-draw'; dayId: string; segIdx: number };
+export type PickMode = null | { kind: 'waypoint'; dayId: string };
 
 interface PickState {
   mode: PickMode;
   requestPick: (mode: NonNullable<PickMode>) => void;
   cancelPick: () => void;
-  /** resolve the pending pick with map coordinates */
   resolver: ((pt: GeoPoint) => void) | null;
   registerResolver: (fn: ((pt: GeoPoint) => void) | null) => void;
 }

@@ -1,147 +1,107 @@
 import { useMemo, useState } from 'react';
-import type { PoiKind } from '../../lib/types';
-import { listKey, useAppStore } from '../../store/appStore';
-import { flyToPoint } from '../../lib/cesium';
+import type { Poi } from '../../lib/types';
+import { useAppStore } from '../../store/appStore';
+import { flyToPoint } from '../../lib/leaflet';
 import SearchBox, { type SearchHit } from './SearchBox';
 
-function KindSection({
-  kind,
-  title,
-  icon,
-  hint,
-}: {
-  kind: PoiKind;
-  title: string;
-  icon: string;
-  hint: string;
-}) {
-  const list = useAppStore((s) => s[listKey(kind)]);
-  const visibility = useAppStore((s) => s.visibility);
+export default function PoiPanel() {
+  const list = useAppStore((s) => s.scenicList);
+  const showPois = useAppStore((s) => s.showPois);
   const locateTarget = useAppStore((s) => s.locateTarget);
-  const addToList = useAppStore((s) => s.addToList);
-  const removeFromList = useAppStore((s) => s.removeFromList);
-  const toggleItem = useAppStore((s) => s.toggleItem);
-  const toggleListAll = useAppStore((s) => s.toggleListAll);
-  const clearList = useAppStore((s) => s.clearList);
   const [expanded, setExpanded] = useState(true);
 
   const hiddenCount = list.filter((l) => !l.visible).length;
+  const visibleList = useMemo(() => [...list].sort((a, b) => b.addedAt - a.addedAt), [list]);
 
   const onPick = (hit: SearchHit) => {
-    if (hit.kind !== kind || !hit.poi) return;
-    addToList(hit.poi);
+    if (hit.kind !== 'scenic' || !hit.poi) return;
+    useAppStore.getState().addToList(hit.poi);
     flyToPoint(hit.lat, hit.lng);
   };
 
-  const visibleList = useMemo(() => {
-    return [...list].sort((a, b) => b.addedAt - a.addedAt);
-  }, [list]);
+  const locatePoi = (poi: Poi) => {
+    const app = useAppStore.getState();
+    const isActive = app.locateTarget && app.locateTarget.name === poi.name && Math.abs(app.locateTarget.lat - poi.lat) < 1e-6 && Math.abs(app.locateTarget.lng - poi.lng) < 1e-6;
+    if (isActive) {
+      app.setLocateTarget(null);
+    } else {
+      app.setLocateTarget({ lat: poi.lat, lng: poi.lng, name: poi.name });
+    }
+  };
 
-  return (
-    <section className={`kind-section ${expanded ? '' : 'collapsed'}`}>
-      <div className="kind-head">
-        <button className="kind-title" onClick={() => setExpanded((v) => !v)}>
-          <span className="kind-chevron">{expanded ? '▾' : '▸'}</span>
-          <span className="kind-ico">{icon}</span>
-          <span>{title}</span>
-          <span className="kind-count mono">{list.length}</span>
-          {hiddenCount > 0 && <span className="kind-hidden mono">{hiddenCount} 隐藏</span>}
-        </button>
-        <div className="kind-actions">
-          <button
-            className="mini-btn"
-            title={visibility[kind] ? '隐藏全部该类型图钉' : '显示全部该类型图钉'}
-            onClick={() => useAppStore.getState().setVisibility({ [kind]: !visibility[kind] } as never)}
-          >
-            <EyeIcon on={visibility[kind]} />
-          </button>
-          <button className="mini-btn" title="清空列表" disabled={list.length === 0} onClick={() => clearList(kind)}>
-            <TrashIcon />
-          </button>
-        </div>
-      </div>
-      {expanded && (
-        <>
-          <div className="kind-search">
-            <SearchBox
-              placeholder={hint}
-              kinds={[kind]}
-              onPick={onPick}
-            />
-          </div>
-          <div className="kind-actions-row">
-            <button className="text-btn" onClick={() => toggleListAll(kind)} disabled={list.length === 0}>
-              {hiddenCount > 0 ? '全部显示' : '全部隐藏'}
-            </button>
-            <span className="text-btn-hint mono">{list.length} 项已收藏</span>
-          </div>
-          <ul className="poi-list">
-            {visibleList.map(({ poi, visible }) => (
-              <li key={poi.id} className={`poi-item ${visible ? '' : 'off'}`}>
-                <div className="poi-thumb">
-                  {poi.img ? (
-                    <img src={poi.img} alt="" loading="lazy" onError={(e) => ((e.target as HTMLImageElement).style.display = 'none')} />
-                  ) : (
-                    <span className="poi-thumb-fallback">{kind === 'airport' ? '✈' : kind === 'station' ? '🚄' : '⛰'}</span>
-                  )}
-                  {poi.kind === 'station' && (poi as { hsr?: boolean }).hsr && <span className="poi-badge">高</span>}
-                </div>
-                <div className="poi-info">
-                  <div className="poi-name">{poi.name}</div>
-                  <div className="poi-sub mono">
-                    {poi.lat.toFixed(3)}°N · {poi.lng.toFixed(3)}°E
-                    {poi.code ? ` · ${poi.code}` : ''}
-                  </div>
-                </div>
-                <div className="poi-ops">
-                  <button
-                    className={`mini-btn ${locateTarget && locateTarget.name === poi.name && Math.abs(locateTarget.lat - poi.lat) < 1e-6 && Math.abs(locateTarget.lng - poi.lng) < 1e-6 ? 'active' : ''}`}
-                    title={locateTarget && locateTarget.name === poi.name ? '取消定位' : '定位到地图'}
-                    onClick={() => {
-                      const app = useAppStore.getState();
-                      const isActive = app.locateTarget && app.locateTarget.name === poi.name && Math.abs(app.locateTarget.lat - poi.lat) < 1e-6 && Math.abs(app.locateTarget.lng - poi.lng) < 1e-6;
-                      if (isActive) {
-                        app.setLocateTarget(null);
-                      } else {
-                        app.setLocateTarget({
-                          lat: poi.lat,
-                          lng: poi.lng,
-                          name: poi.name,
-                          color: '#E8A33D',
-                        });
-                        flyToPoint(poi.lat, poi.lng);
-                      }
-                    }}
-                  >
-                    <LocateIcon />
-                  </button>
-                  <button className="mini-btn" title={visible ? '隐藏该图钉' : '显示该图钉'} onClick={() => toggleItem(kind, poi.id)}>
-                    <EyeIcon on={visible} />
-                  </button>
-                  <button className="mini-btn danger" title="移出列表" onClick={() => removeFromList(kind, poi.id)}>
-                    <TrashIcon />
-                  </button>
-                </div>
-              </li>
-            ))}
-            {list.length === 0 && (
-              <li className="poi-empty">在上方搜索并添加景点，图钉即会出现在地图上</li>
-            )}
-          </ul>
-        </>
-      )}
-    </section>
-  );
-}
-
-export default function PoiPanel() {
   return (
     <div className="poi-panel">
-      <KindSection kind="scenic" title="风景名胜" icon="⛰" hint="搜索景点，如「西湖」「长城」" />
-      <KindSection kind="airport" title="机场枢纽" icon="✈" hint="搜索机场，如「大兴」「浦东」" />
-      <KindSection kind="station" title="铁路车站" icon="🚄" hint="搜索车站，如「南京南」「杭州东」" />
+      <div className="kind-section">
+        <div className="kind-head">
+          <button className="kind-title" onClick={() => setExpanded((v) => !v)}>
+            <span className="kind-chevron">{expanded ? '▾' : '▸'}</span>
+            <span className="kind-ico">⛰</span>
+            <span>风景名胜</span>
+            <span className="kind-count mono">{list.length}</span>
+            {hiddenCount > 0 && <span className="kind-hidden mono">{hiddenCount} 隐藏</span>}
+          </button>
+          <div className="kind-actions">
+            <button className="mini-btn" title={showPois ? '隐藏全部景点图钉' : '显示全部景点图钉'} onClick={() => useAppStore.getState().setShowPois(!showPois)}>
+              <EyeIcon on={showPois} />
+            </button>
+            <button className="mini-btn" title="清空列表" disabled={list.length === 0} onClick={() => useAppStore.getState().clearList()}>
+              <TrashIcon />
+            </button>
+          </div>
+        </div>
+        {expanded && (
+          <>
+            <div className="kind-search">
+              <SearchBox placeholder="搜索景点，如「西湖」「长城」" kinds={['scenic']} onPick={onPick} />
+            </div>
+            <div className="kind-actions-row">
+              <button className="text-btn" onClick={() => useAppStore.getState().toggleListAll()} disabled={list.length === 0}>
+                {hiddenCount > 0 ? '全部显示' : '全部隐藏'}
+              </button>
+              <span className="text-btn-hint mono">{list.length} 项已收藏</span>
+            </div>
+            <ul className="poi-list">
+              {visibleList.map(({ poi, visible }) => (
+                <li key={poi.id} className={`poi-item ${visible ? '' : 'off'}`}>
+                  <div className="poi-thumb">
+                    {poi.img ? (
+                      <img src={poi.img} alt="" loading="lazy" onError={(e) => ((e.target as HTMLImageElement).style.display = 'none')} />
+                    ) : (
+                      <span className="poi-thumb-fallback">⛰</span>
+                    )}
+                  </div>
+                  <div className="poi-info">
+                    <div className="poi-name">{poi.name}</div>
+                    <div className="poi-sub mono">
+                      {poi.lat.toFixed(3)}°N · {poi.lng.toFixed(3)}°E
+                    </div>
+                  </div>
+                  <div className="poi-ops">
+                    <button
+                      className={`mini-btn ${locateTarget && locateTarget.name === poi.name && Math.abs(locateTarget.lat - poi.lat) < 1e-6 && Math.abs(locateTarget.lng - poi.lng) < 1e-6 ? 'active' : ''}`}
+                      title={locateTarget && locateTarget.name === poi.name ? '取消定位' : '定位到地图'}
+                      onClick={() => locatePoi(poi)}
+                    >
+                      <LocateIcon />
+                    </button>
+                    <button className="mini-btn" title={visible ? '隐藏该图钉' : '显示该图钉'} onClick={() => useAppStore.getState().toggleItem(poi.id)}>
+                      <EyeIcon on={visible} />
+                    </button>
+                    <button className="mini-btn danger" title="移出列表" onClick={() => useAppStore.getState().removeFromList(poi.id)}>
+                      <TrashIcon />
+                    </button>
+                  </div>
+                </li>
+              ))}
+              {list.length === 0 && (
+                <li className="poi-empty">在上方搜索并添加景点，图钉即会出现在地图上</li>
+              )}
+            </ul>
+          </>
+        )}
+      </div>
       <div className="panel-note">
-        <p>悬停地图上的图钉查看详情与图片；在「行程」页可将图钉直接设为途经点。</p>
+        <p>悬停地图上的绿色图钉查看景点详情与图片；「行程」页可将景点直接设为途经点。</p>
       </div>
     </div>
   );

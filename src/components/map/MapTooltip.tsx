@@ -16,32 +16,25 @@ export default function MapTooltip({ target, onAdd, added }: Props) {
     const el = ref.current;
     const w = el.offsetWidth;
     const h = el.offsetHeight;
-    let x = target.screenX + 16;
-    let y = target.screenY - h - 8;
-    if (x + w > window.innerWidth - 8) x = target.screenX - w - 16;
-    if (y < 8) y = target.screenY + 20;
+    let x = target.screenX + 18;
+    let y = target.screenY - h - 10;
+    if (x + w > window.innerWidth - 8) x = target.screenX - w - 18;
+    if (y < 8) y = target.screenY + 24;
     setPos({ x, y });
   }, [target]);
 
   if (!target) return null;
   const { poi } = target;
 
-  const kindLabel =
-    poi.kind === 'scenic' ? '景点' : poi.kind === 'airport' ? '机场' : poi.kind === 'station' ? '火车站' : '';
-  const kindClass =
-    poi.kind === 'scenic' ? 'tip-scenic' : poi.kind === 'airport' ? 'tip-airport' : 'tip-station';
-
   return (
-    <div ref={ref} className={`map-tooltip ${kindClass}`} style={{ left: pos.x, top: pos.y }}>
+    <div ref={ref} className="map-tooltip" style={{ left: pos.x, top: pos.y }}>
       <div className="tooltip-media">
         {poi.img ? (
           <img src={poi.img} alt={poi.name} loading="lazy" onError={(e) => ((e.target as HTMLImageElement).style.display = 'none')} />
         ) : (
-          <div className="tooltip-media-fallback">{poi.kind === 'airport' ? '✈' : poi.kind === 'station' ? '🚄' : '⛰'}</div>
+          <div className="tooltip-media-fallback">⛰</div>
         )}
-        <span className="tooltip-kind">{kindLabel}</span>
-        {poi.kind === 'airport' && poi.code && <span className="tooltip-code mono">{poi.code}</span>}
-        {poi.kind === 'station' && (poi as { hsr?: boolean }).hsr && <span className="tooltip-hsr">高铁</span>}
+        <span className="tooltip-kind">景点</span>
       </div>
       <div className="tooltip-body">
         <div className="tooltip-name">{poi.name}</div>
